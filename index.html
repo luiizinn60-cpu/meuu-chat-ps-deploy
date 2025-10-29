@@ -3,26 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Omegle</title>
+    <title>Omegle - Interativo</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        /* Estilos Globais e Reset */
+        /* Estilos Globais e Reset (Mais modernos) */
         body {
-            font-family: 'Arial', sans-serif;
+            font-family: 'Roboto', sans-serif;
             margin: 0;
             padding: 0;
-            background-color: #f6f6f6; /* Fundo cinza muito claro */
-            color: #333;
+            background-color: #f7f9fc; /* Fundo muito claro e moderno */
+            color: #2c3e50; /* Texto escuro */
             display: flex;
             flex-direction: column;
             align-items: center;
             min-height: 100vh;
+            padding-bottom: 20px;
         }
-
+        
         /* Container Principal (Layout centralizado) */
         #main-container {
             width: 100%;
-            max-width: 900px;
+            max-width: 1000px; /* Mais largura */
             padding: 20px;
             box-sizing: border-box;
             display: flex;
@@ -32,22 +33,32 @@
 
         /* Título */
         h1 {
-            color: #336699; /* Azul Omegle */
-            font-size: 2.2em;
-            font-weight: bold;
-            margin: 0 0 20px 0;
+            color: #3498db; /* Azul moderno */
+            font-size: 2.5em;
+            font-weight: 700;
+            margin: 10px 0 25px 0;
             text-align: center;
         }
+        
+        /* Indicador de Status */
+        #status-indicator {
+            padding: 8px 15px;
+            margin-bottom: 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            color: white;
+            transition: background-color 0.5s ease;
+        }
 
-        /* Estrutura de Duas Colunas (Web) */
+        /* Estrutura de Duas Colunas */
         #content-wrapper {
             display: flex;
             width: 100%;
-            gap: 20px;
+            gap: 25px;
             flex-wrap: wrap;
         }
 
-        /* COLUNA DA ESQUERDA: Vídeo e Controles */
+        /* Área de Vídeo/Controles */
         #video-controls-area {
             flex: 1;
             min-width: 300px; 
@@ -55,16 +66,18 @@
             flex-direction: column;
         }
 
-        /* Caixas de Vídeo (Visual Omegle) */
+        /* Caixas de Vídeo (Com Borda Suave e Destaque) */
         .video-box {
             width: 100%;
-            background-color: #ffffff;
-            border: 1px solid #c0c0c0;
-            border-radius: 4px;
+            background-color: #ecf0f1; /* Cinza claro */
+            border: 2px solid #ddd;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05); /* Sombra suave */
             overflow: hidden;
             position: relative;
             min-height: 250px;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
+            transition: border-color 0.3s ease;
         }
         .video-box video {
             width: 100%;
@@ -73,111 +86,106 @@
             object-fit: cover;
             background-color: #000;
         }
-
-        /* Botão "Next" (Clássico e Alinhado) */
-        #nextButton {
-            background-color: #ff9900; /* Laranja Omegle */
-            color: white;
-            padding: 8px 20px;
-            border: 1px solid #cc7a00;
-            border-radius: 3px;
-            font-size: 1em;
-            font-weight: bold;
-            cursor: pointer;
-            text-shadow: 0 1px 0 rgba(0,0,0,0.1);
-            margin-top: 10px;
-            width: 100%;
-            box-sizing: border-box;
-            transition: background-color 0.15s;
-        }
-        #nextButton:hover {
-            background-color: #e68a00;
+        .video-box:hover {
+             border-color: #3498db; /* Destaque ao passar o mouse */
         }
         
-        /* COLUNA DA DIREITA: Área de Chat */
+        /* Botão "Next" (Estilo Botão de Ação) */
+        #nextButton {
+            background-color: #e74c3c; /* Vermelho Ação */
+            color: white;
+            padding: 10px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 3px 0 #c0392b; /* Sombra 3D */
+            transition: all 0.15s ease;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        #nextButton:active {
+            box-shadow: 0 1px 0 #c0392b;
+            transform: translateY(2px);
+        }
+
+        /* Área de Chat */
         #chat-area {
             flex: 1;
             min-width: 300px;
             display: flex;
             flex-direction: column;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            overflow: hidden;
         }
 
-        /* Container da Lista de Mensagens */
+        /* Lista de Mensagens */
         #messages {
             list-style-type: none;
             margin: 0;
-            padding: 10px 15px;
-            background-color: #fbfbfb;
-            border: 1px solid #c0c0c0;
-            border-radius: 4px;
-            height: 350px;
-            overflow-y: auto;
+            padding: 15px;
+            height: 250px; 
+            overflow-y: auto; 
             flex-grow: 1;
         }
         #messages > li {
             padding: 6px 0;
-            border-bottom: 1px dotted #eee;
-            font-size: 0.95em;
             line-height: 1.4;
-        }
-        #messages > li:last-child {
-            border-bottom: none;
+            transition: opacity 0.3s;
         }
 
-        /* Formulário de Input (Clássico) */
+        /* Input de Chat */
         #form {
-            padding: 10px 0 0 0;
+            padding: 10px 15px;
             display: flex;
-            border: none;
-            background-color: transparent;
+            border-top: 1px solid #eee;
+            background-color: #f7f9fc;
         }
         #input {
             flex-grow: 1;
-            padding: 8px;
-            border: 1px solid #c0c0c0;
-            border-radius: 3px;
+            padding: 10px 15px;
+            border: 1px solid #ccc;
+            border-radius: 20px;
             margin-right: 10px;
             font-size: 1em;
             outline: none;
+            transition: border-color 0.3s;
         }
+        #input:focus { border-color: #3498db; }
+        
         #form button {
-            background-color: #336699;
+            background-color: #3499db;
             color: white;
-            padding: 8px 20px;
-            border: 1px solid #28547a;
-            border-radius: 3px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 20px;
             font-weight: bold;
             cursor: pointer;
+            transition: background-color 0.2s;
         }
-        
-        /* RESPONSIVIDADE (SMARTPHONES) */
+        #form button:hover { background-color: #2980b9; }
+
+        /* Responsividade para telas menores */
         @media (max-width: 650px) {
             #content-wrapper {
-                flex-direction: column; /* Empilha as colunas */
-                gap: 10px;
+                flex-direction: column;
+                gap: 15px;
             }
-            #video-controls-area, #chat-area {
-                min-width: 100%;
-            }
-            .video-box {
-                max-width: 100%;
-                min-height: 200px;
-            }
-            /* Botão Next centralizado e ajustado para mobile */
-            #nextButton {
-                width: 100%; 
-                margin: 10px 0; 
-            }
-             #messages {
-                max-height: 180px; /* Limita a altura para não ocupar a tela toda */
-                margin-bottom: 10px; 
-            }
+            #video-controls-area, #chat-area { min-width: 100%; }
+            .video-box { max-width: 100%; }
+            #nextButton { width: 100%; }
+            #messages { max-height: 150px; }
         }
     </style>
 </head>
 <body>
     <div id="main-container">
         <h1>Omegle</h1>
+        <div id="status-indicator">Buscando Parceiro...</div>
 
         <div id="content-wrapper">
             
@@ -211,6 +219,7 @@
         const form = document.getElementById('form');
         const input = document.getElementById('input');
         const nextButton = document.getElementById('nextButton');
+        const statusIndicator = document.getElementById('status-indicator'); // NOVO ELEMENTO
         
         const iceServers = {
             'iceServers': [
@@ -218,12 +227,17 @@
             ]
         };
 
+        // --- FUNÇÃO DE STATUS INTERATIVA ---
+        function updateStatus(message, color) {
+            statusIndicator.textContent = message;
+            statusIndicator.style.backgroundColor = color;
+        }
+        
         // --- 1. CHAT DE TEXTO ---
         form.addEventListener('submit', function(e) {
             e.preventDefault();
             if (input.value) {
-                // Adiciona o prefixo 'You:' para estilo no cliente
-                socket.emit('chat message', 'You: ' + input.value); 
+                socket.emit('chat message', input.value); 
                 input.value = '';
             }
         });
@@ -232,12 +246,14 @@
             var item = document.createElement('li');
             item.textContent = msg;
             messages.appendChild(item);
-            messages.scrollTop = messages.scrollHeight; // Rola para a última mensagem
+            messages.scrollTop = messages.scrollHeight;
         });
 
         // --- 2. WEBRTC (Conexão) ---
         async function startWebRTC() {
             try {
+                updateStatus("Buscando Parceiro...", "#f39c12"); // Amarelo/Laranja: Buscando
+
                 if (!localStream) { 
                     localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                     localVideo.srcObject = localStream;
@@ -255,6 +271,7 @@
                 peerConnection.ontrack = (event) => {
                     if (event.streams && event.streams[0]) {
                         remoteVideo.srcObject = event.streams[0];
+                        updateStatus("Conectado!", "#27ae60"); // Verde: Conectado
                     }
                 };
 
@@ -268,16 +285,16 @@
                 remoteVideo.srcObject = null;
                 socket.otherUserId = null; 
                 
-                // Sinaliza para o servidor que estamos prontos para um novo parceiro
                 socket.emit('ready-for-new-partner'); 
 
             } catch (error) {
+                updateStatus("Erro na Câmera/Microfone. Recarregue.", "#e74c3c"); // Vermelho: Erro
                 alert('É necessário permitir o acesso à webcam e microfone e recarregar a página.');
                 console.error('WebRTC Startup Error:', error);
             }
         }
 
-        // --- 3. SINALIZAÇÃO ---
+        // --- 3. SINALIZAÇÃO E EVENTOS ---
         async function createOffer() {
             if (!peerConnection || !socket.otherUserId) return;
             const offer = await peerConnection.createOffer();
@@ -288,6 +305,7 @@
         socket.on('user-connected', (userId) => {
             socket.otherUserId = userId; 
             createOffer(); 
+            // O status será atualizado no evento peerConnection.ontrack (quando o vídeo chega)
         });
 
         socket.on('offer', async (id, description) => {
@@ -310,29 +328,26 @@
 
         socket.on('user-disconnected', (userId) => {
             if (userId === socket.otherUserId) {
-                alert("O parceiro se desconectou. Você será colocado na fila para buscar um novo.");
-                remoteVideo.srcObject = null; // Limpa o vídeo remoto
+                updateStatus("Parceiro Desconectado. Buscando Novo...", "#3498db"); // Azul: Desconectado/Buscando
+                remoteVideo.srcObject = null;
                 socket.otherUserId = null;
-                // Coloca o cliente na fila para achar um novo parceiro automaticamente
                 socket.emit('find-new-partner'); 
             }
         });
 
         // --- 4. LÓGICA DO BOTÃO NEXT ---
         nextButton.addEventListener('click', () => {
-            // 1. Notifica o servidor para limpar a conexão e parceiro
+            updateStatus("Buscando Parceiro...", "#f39c12"); // Amarelo/Laranja: Buscando
+
             if (socket.otherUserId) {
                  socket.emit('find-new-partner'); 
             }
             
-            // 2. Fecha a conexão WebRTC localmente
             if (peerConnection) {
                 peerConnection.close();
             }
             
-            // 3. Inicia a nova busca e reinicia o frontend
             startWebRTC(); 
-            alert("Buscando novo parceiro...");
         });
 
         // INICIA O PROCESSO WEBRTC QUANDO A PÁGINA CARREGA
