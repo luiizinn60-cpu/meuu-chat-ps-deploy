@@ -13,8 +13,6 @@ app.get('/', (req, res) => {
 let waitingUsers = [];
 
 io.on('connection', (socket) => {
-  console.log('Usuário conectado. ID:', socket.id);
-
   // Adiciona o usuário à lista de espera e tenta conectá-lo
   waitingUsers.push(socket.id);
   findPartner(socket);
@@ -23,18 +21,23 @@ io.on('connection', (socket) => {
   // 1. CHAT DE TEXTO
   // ------------------------------------
   socket.on('chat message', (msg) => {
-    // Se tiver um parceiro, envia só pra ele. Senão, para todos.
+    // Envia a mensagem para o parceiro
     if (socket.partnerId) {
-      socket.to(socket.partnerId).emit('chat message', msg);
+      io.to(socket.partnerId).emit('chat message', 'Stranger: ' + msg);
     } else {
-      // Caso não tenha parceiro (ainda), pode enviar para todos ou guardar
-      io.emit('chat message', msg); 
+      // Se não tem parceiro, envia a mensagem de volta para si mesmo (feedback)
+      socket.emit('chat message', 'You: ' + msg);
     }
   });
 
   // ------------------------------------
   // 2. SINALIZAÇÃO WEBRTC
   // ------------------------------------
+  socket.on('ready-for-new-partner', () => {
+      // Se o cliente sinalizar que está pronto, tenta achar parceiro (usado no startWebRTC)
+      findPartner(socket);
+  });
+  
   socket.on('offer', (id, message) => {
     socket.to(id).emit('offer', socket.id, message);
   });
@@ -48,29 +51,27 @@ io.on('connection', (socket) => {
   });
 
   // ------------------------------------
-  // 3. LÓGICA DE PROCURAR NOVO PARCEIRO (Botão Next)
+  // 3. LÓGICA DE PROCURAR NOVO PARCEIRO (Botão Next e Desconexão)
   // ------------------------------------
   socket.on('find-new-partner', () => {
-    console.log(`Usuário ${socket.id} buscando novo parceiro.`);
-    // Notifica o parceiro atual que o outro usuário se desconectou
+    // Notifica o parceiro atual que o outro usuário saiu
     if (socket.partnerId) {
       io.to(socket.partnerId).emit('user-disconnected', socket.id);
-      // Remove o parceiro do lado dele também
+      
       const partnerSocket = io.sockets.sockets.get(socket.partnerId);
       if (partnerSocket) {
         partnerSocket.partnerId = null;
+        // Coloca o parceiro na fila para encontrar outro
+        waitingUsers.push(partnerSocket.id);
+        findPartner(partnerSocket);
       }
     }
-    // Remove este usuário da lista de espera se já estiver
-    waitingUsers = waitingUsers.filter(id => id !== socket.id);
-    socket.partnerId = null; // Limpa o parceiro deste socket
-    waitingUsers.push(socket.id); // Adiciona na fila para encontrar novo
-    findPartner(socket);
+    // Remove o ID antigo e prepara para entrar na fila novamente (feito no cliente)
+    socket.partnerId = null; 
   });
 
   socket.on('disconnect', () => {
-    console.log('Usuário desconectado. ID:', socket.id);
-    // Remove o usuário da lista de espera
+    // Remove o usuário da lista de espera se estava esperando
     waitingUsers = waitingUsers.filter(id => id !== socket.id);
 
     // Se ele tinha um parceiro, notifica o parceiro
@@ -79,7 +80,7 @@ io.on('connection', (socket) => {
       const partnerSocket = io.sockets.sockets.get(socket.partnerId);
       if (partnerSocket) {
         partnerSocket.partnerId = null;
-        // Coloca o parceiro na fila de espera para encontrar outro
+        // Coloca o parceiro na fila para encontrar outro
         waitingUsers.push(partnerSocket.id);
         findPartner(partnerSocket);
       }
@@ -89,7 +90,10 @@ io.on('connection', (socket) => {
 
 // --- FUNÇÃO PARA ENCONTRAR PARCEIRO ---
 function findPartner(currentSocket) {
-  // Filtra por usuários que não são o próprio e que não têm parceiro
+  // 1. Limpa a lista de espera de qualquer ID que tenha se desconectado
+  waitingUsers = waitingUsers.filter(id => io.sockets.sockets.has(id));
+
+  // 2. Filtra por usuários que estão esperando e não têm parceiro
   const availablePartners = waitingUsers.filter(
     id => id !== currentSocket.id && !io.sockets.sockets.get(id).partnerId
   );
@@ -99,30 +103,28 @@ function findPartner(currentSocket) {
     const partnerSocket = io.sockets.sockets.get(partnerId);
 
     if (partnerSocket) {
-      // Conecta os dois
+      // 3. Conecta os dois
       currentSocket.partnerId = partnerId;
       partnerSocket.partnerId = currentSocket.id;
 
-      // Remove os dois da lista de espera
+      // 4. Remove os dois da lista de espera
       waitingUsers = waitingUsers.filter(id => id !== currentSocket.id && id !== partnerId);
 
-      // Notifica o cliente que encontrou um parceiro
+      // 5. Notifica os clientes para iniciar o WebRTC
       currentSocket.emit('user-connected', partnerId);
       partnerSocket.emit('user-connected', currentSocket.id);
-      
-      console.log(`Parceiro encontrado: ${currentSocket.id} <-> ${partnerId}`);
     } else {
-      // Se o socket do parceiro não foi encontrado (desconectou), remove ele da lista
+      // Se algo deu errado com o parceiro, limpa a lista e tenta de novo
       waitingUsers = waitingUsers.filter(id => id !== partnerId);
-      // Tenta novamente para o usuário atual
       findPartner(currentSocket);
     }
   } else {
-    console.log(`Usuário ${currentSocket.id} esperando por parceiro...`);
-    // O usuário permanece na lista de espera
+    // Se não encontrou, garante que o usuário atual está na lista de espera
+    if (!waitingUsers.includes(currentSocket.id)) {
+        waitingUsers.push(currentSocket.id);
+    }
   }
 }
-
 
 // Inicia o servidor na porta definida
 http.listen(port, () => {
