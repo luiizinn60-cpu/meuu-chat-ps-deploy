@@ -6,22 +6,16 @@
     <title>Omegle</title>
     <style>
         body { margin: 0; padding-bottom: 3rem; font-family: sans-serif; background-color: #f0f0f0; }
-        #video-container { 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            flex-direction: column; 
-            padding: 20px; 
-            min-height: 200px;
-        }
-        #localVideo {
-            width: 100%;
-            max-width: 400px;
+        #video-container { display: flex; justify-content: space-around; padding: 20px; }
+        .video-box {
+            width: 48%;
+            max-width: 450px;
             border: 2px solid #007bff;
             border-radius: 8px;
             background-color: #333;
-            margin-bottom: 15px;
+            overflow: hidden;
         }
+        .video-box video { width: 100%; display: block; }
         #form { background: #fff; padding: 0.5rem; position: fixed; bottom: 0; left: 0; right: 0; display: flex; height: 3rem; box-sizing: border-box; border-top: 1px solid #ccc; }
         #input { border: 1px solid #ccc; padding: 0 1rem; flex-grow: 1; border-radius: 20px; margin-right: 0.5rem; }
         #form > button { background: #007bff; border: none; padding: 0 1rem; border-radius: 20px; outline: none; color: #fff; cursor: pointer; }
@@ -30,8 +24,8 @@
 </head>
 <body>
     <div id="video-container">
-        <video id="localVideo" autoplay muted playsinline></video>
-        <video id="remoteVideo" autoplay playsinline></video>
+        <div class="video-box"><video id="localVideo" autoplay muted playsinline></video></div>
+        <div class="video-box"><video id="remoteVideo" autoplay playsinline></video></div>
     </div>
 
     <ul id="messages"></ul>
@@ -41,9 +35,21 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
-        // --- 1. CONFIGURAÇÃO BÁSICA DO CHAT (Socket.IO) ---
+        // --- VARIÁVEIS GLOBAIS ---
         var socket = io();
+        var localStream;
+        var peerConnection; // A conexão WebRTC com o outro usuário
+        const localVideo = document.getElementById('localVideo');
+        const remoteVideo = document.getElementById('remoteVideo');
+        const iceServers = {
+            'iceServers': [
+                { 'urls': 'stun:stun.l.google.com:19302' }, // Servidor STUN gratuito do Google
+            ]
+        };
 
+        // --- 1. CONFIGURAÇÃO CHAT DE TEXTO ---
+        // (Código do chat de texto permanece)
+        // ... (Mesma lógica do chat de texto que você já tinha) ...
         var form = document.getElementById('form');
         var input = document.getElementById('input');
         var messages = document.getElementById('messages');
@@ -63,24 +69,97 @@
             window.scrollTo(0, document.body.scrollHeight);
         });
 
-        // --- 2. CAPTURA DA WEBCAM (WebRTC) ---
-        const localVideo = document.getElementById('localVideo');
+        // --- 2. INICIAR WEBCAM E WEBRTC ---
+        async function startWebRTC() {
+            try {
+                // 2.1 Capturar a mídia local (webcam e mic)
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                localVideo.srcObject = localStream;
+                console.log('Webcam iniciada.');
 
-        // Pede acesso à câmera e microfone
-        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-            .then(stream => {
-                // Atribui o stream de vídeo à tag <video>
-                localVideo.srcObject = stream;
-                console.log('Webcam iniciada com sucesso!');
-            })
-            .catch(error => {
-                console.error('Erro ao acessar a webcam:', error);
-                alert('É necessário permitir o acesso à webcam e microfone.');
-            });
+                // 2.2 Iniciar a conexão P2P (RTCPeerConnection)
+                peerConnection = new RTCPeerConnection(iceServers);
 
-        // --- 3. LÓGICA DE CONEXÃO (WebRTC Completa, que é muito mais complexa) ---
-        // Para conectar com outro usuário, seria necessário código AQUI
-        // que utiliza o Socket.IO para trocar as informações de conexão (SDP e ICE).
+                // 2.3 Adicionar a mídia local à conexão
+                localStream.getTracks().forEach(track => {
+                    peerConnection.addTrack(track, localStream);
+                });
+
+                // 2.4 Lidar com o fluxo de vídeo remoto (do outro usuário)
+                peerConnection.ontrack = (event) => {
+                    if (event.streams && event.streams[0]) {
+                        remoteVideo.srcObject = event.streams[0];
+                        console.log('Stream remoto recebido.');
+                    }
+                };
+
+                // 2.5 Lidar com os CANDIDATOS ICE (Troca de informações de rede)
+                peerConnection.onicecandidate = (event) => {
+                    if (event.candidate) {
+                        socket.emit('candidate', socket.otherUserId, event.candidate);
+                        console.log('Candidato ICE enviado.');
+                    }
+                };
+
+                // 2.6 Tentar criar a OFERTA (Se for o primeiro a entrar)
+                createOffer(); 
+
+            } catch (error) {
+                console.error('Erro ao iniciar WebRTC:', error);
+                alert('É necessário permitir o acesso à webcam e microfone e recarregar a página.');
+            }
+        }
+
+        // --- 3. FUNÇÕES DE OFERTA/RESPOSTA ---
+        // Cria e envia a OFERTA
+        async function createOffer() {
+            if (!peerConnection) return;
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+            socket.emit('offer', socket.otherUserId, peerConnection.localDescription);
+        }
+
+        // --- 4. RECEBIMENTO DE SINALIZAÇÃO DO SERVIDOR ---
+        
+        // Novo usuário conectado (o servidor nos avisou)
+        socket.on('user-connected', (userId) => {
+            socket.otherUserId = userId; // Guarda o ID do outro usuário
+            console.log('Novo usuário conectado:', userId);
+            createOffer(); // Cria a oferta para iniciar a conversa
+        });
+
+        // Recebemos a oferta do outro usuário
+        socket.on('offer', async (id, description) => {
+            socket.otherUserId = id;
+            peerConnection.setRemoteDescription(description);
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+            socket.emit('answer', id, peerConnection.localDescription);
+            console.log('Oferta recebida, resposta enviada.');
+        });
+
+        // Recebemos a resposta do outro usuário
+        socket.on('answer', (id, description) => {
+            peerConnection.setRemoteDescription(description);
+            console.log('Resposta recebida, conexão estabelecida!');
+        });
+
+        // Recebemos um candidato ICE
+        socket.on('candidate', (id, candidate) => {
+            peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+            console.log('Candidato ICE recebido e adicionado.');
+        });
+
+        // Usuário se desconectou
+        socket.on('user-disconnected', (userId) => {
+            if (userId === socket.otherUserId) {
+                alert("O outro usuário se desconectou.");
+                window.location.reload(); // Recarrega para buscar novo usuário
+            }
+        });
+
+        // INICIA O PROCESSO WEBRTC
+        startWebRTC();
     </script>
 </body>
 </html>
