@@ -6,3 +6,4 @@ Adição da lógica de Sinalização WebRTC no servidor
 Implementação completa da Sinalização WebRTC no cliente
 "server.js - Código final e limpo
 index.html - Código final, Omegle e logs removidos
+Aplicação do layout Omegle e código final
