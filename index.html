@@ -3,19 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat Simples Online</title>
+    <title>Omegle</title>
     <style>
         body { margin: 0; padding-bottom: 3rem; font-family: sans-serif; background-color: #f0f0f0; }
+        #video-container { 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            flex-direction: column; 
+            padding: 20px; 
+            min-height: 200px;
+        }
+        #localVideo {
+            width: 100%;
+            max-width: 400px;
+            border: 2px solid #007bff;
+            border-radius: 8px;
+            background-color: #333;
+            margin-bottom: 15px;
+        }
         #form { background: #fff; padding: 0.5rem; position: fixed; bottom: 0; left: 0; right: 0; display: flex; height: 3rem; box-sizing: border-box; border-top: 1px solid #ccc; }
         #input { border: 1px solid #ccc; padding: 0 1rem; flex-grow: 1; border-radius: 20px; margin-right: 0.5rem; }
-        #input:focus { outline: none; border-color: #007bff; }
         #form > button { background: #007bff; border: none; padding: 0 1rem; border-radius: 20px; outline: none; color: #fff; cursor: pointer; }
         #messages { list-style-type: none; margin: 0; padding: 1rem 0; }
-        #messages > li { padding: 0.5rem 1rem; border-bottom: 1px solid #eee; }
-        #messages > li:nth-child(odd) { background: #e9e9e9; }
     </style>
 </head>
 <body>
+    <div id="video-container">
+        <video id="localVideo" autoplay muted playsinline></video>
+        <video id="remoteVideo" autoplay playsinline></video>
+    </div>
+
     <ul id="messages"></ul>
     <form id="form" action="">
         <input id="input" autocomplete="off" placeholder="Digite sua mensagem aqui..." /><button>Enviar</button>
@@ -23,30 +41,46 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
-        // 1. CONEXÃO COM O SERVIDOR
-        // O io() se conecta automaticamente ao endereço do site (omegle-7lkl.onrender.com)
+        // --- 1. CONFIGURAÇÃO BÁSICA DO CHAT (Socket.IO) ---
         var socket = io();
 
-        // 2. ENVIO DA MENSAGEM
         var form = document.getElementById('form');
         var input = document.getElementById('input');
+        var messages = document.getElementById('messages');
+        
         form.addEventListener('submit', function(e) {
             e.preventDefault();
             if (input.value) {
-                // Envia a mensagem para o servidor
                 socket.emit('chat message', input.value);
                 input.value = '';
             }
         });
 
-        // 3. RECEBIMENTO DA MENSAGEM
-        var messages = document.getElementById('messages');
         socket.on('chat message', function(msg) {
             var item = document.createElement('li');
             item.textContent = msg;
             messages.appendChild(item);
             window.scrollTo(0, document.body.scrollHeight);
         });
+
+        // --- 2. CAPTURA DA WEBCAM (WebRTC) ---
+        const localVideo = document.getElementById('localVideo');
+
+        // Pede acesso à câmera e microfone
+        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+            .then(stream => {
+                // Atribui o stream de vídeo à tag <video>
+                localVideo.srcObject = stream;
+                console.log('Webcam iniciada com sucesso!');
+            })
+            .catch(error => {
+                console.error('Erro ao acessar a webcam:', error);
+                alert('É necessário permitir o acesso à webcam e microfone.');
+            });
+
+        // --- 3. LÓGICA DE CONEXÃO (WebRTC Completa, que é muito mais complexa) ---
+        // Para conectar com outro usuário, seria necessário código AQUI
+        // que utiliza o Socket.IO para trocar as informações de conexão (SDP e ICE).
     </script>
 </body>
 </html>
