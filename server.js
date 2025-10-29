@@ -11,14 +11,15 @@ app.get('/', (req, res) => {
 
 // Lógica de SINALIZAÇÃO WebRTC e Chat de Texto
 io.on('connection', (socket) => {
-  console.log('Um usuário se conectou. ID:', socket.id);
+  // Logs de conexão e desconexão são mantidos aqui APENAS para seu controle no console do Render.
+  // Se quiser removê-los, apague as duas linhas abaixo
+  // console.log('Usuário conectado. ID:', socket.id);
   
   // ------------------------------------
   // 1. CHAT DE TEXTO
   // ------------------------------------
   socket.on('chat message', (msg) => {
     io.emit('chat message', msg);
-    console.log('Mensagem: ' + msg);
   });
   
   // ------------------------------------
@@ -44,7 +45,7 @@ io.on('connection', (socket) => {
   
   // Usuário se desconectou
   socket.on('disconnect', () => {
-    console.log('Um usuário se desconectou.');
+    // console.log('Usuário se desconectou.');
     // Notifica os outros que este usuário saiu
     socket.broadcast.emit('user-disconnected', socket.id);
   });
