@@ -8,3 +8,4 @@ Implementação completa da Sinalização WebRTC no cliente
 index.html - Código final, Omegle e logs removidos
 Aplicação do layout Omegle e código final
 Aplicação do layout Fiel ao Omegle e Next Button
+CSS final responsivo e lógica do Next Button no cliente
