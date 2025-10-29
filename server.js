@@ -13,9 +13,8 @@ app.get('/', (req, res) => {
 let waitingUsers = [];
 
 io.on('connection', (socket) => {
-  // Adiciona o usuário à lista de espera e tenta conectá-lo
-  waitingUsers.push(socket.id);
-  findPartner(socket);
+  // A cada nova conexão, o cliente pede para entrar na fila (via ready-for-new-partner no index.html)
+  // Então, não precisamos chamar findPartner aqui diretamente.
 
   // ------------------------------------
   // 1. CHAT DE TEXTO
@@ -26,15 +25,20 @@ io.on('connection', (socket) => {
       io.to(socket.partnerId).emit('chat message', 'Stranger: ' + msg);
     } else {
       // Se não tem parceiro, envia a mensagem de volta para si mesmo (feedback)
-      socket.emit('chat message', 'You: ' + msg);
+      socket.emit('chat message', msg);
     }
   });
 
   // ------------------------------------
   // 2. SINALIZAÇÃO WEBRTC
   // ------------------------------------
+  
+  // Sinal enviado pelo cliente ao iniciar o WebRTC (para entrar na fila)
   socket.on('ready-for-new-partner', () => {
-      // Se o cliente sinalizar que está pronto, tenta achar parceiro (usado no startWebRTC)
+      // Garante que o usuário está na fila de espera
+      if (!waitingUsers.includes(socket.id)) {
+          waitingUsers.push(socket.id);
+      }
       findPartner(socket);
   });
   
@@ -66,8 +70,9 @@ io.on('connection', (socket) => {
         findPartner(partnerSocket);
       }
     }
-    // Remove o ID antigo e prepara para entrar na fila novamente (feito no cliente)
+    // Remove o ID antigo e prepara para entrar na fila novamente (o cliente fará o ready-for-new-partner)
     socket.partnerId = null; 
+    waitingUsers = waitingUsers.filter(id => id !== socket.id);
   });
 
   socket.on('disconnect', () => {
@@ -93,7 +98,7 @@ function findPartner(currentSocket) {
   // 1. Limpa a lista de espera de qualquer ID que tenha se desconectado
   waitingUsers = waitingUsers.filter(id => io.sockets.sockets.has(id));
 
-  // 2. Filtra por usuários que estão esperando e não têm parceiro
+  // 2. Filtra por usuários que estão esperando, não são o próprio e não têm parceiro
   const availablePartners = waitingUsers.filter(
     id => id !== currentSocket.id && !io.sockets.sockets.get(id).partnerId
   );
@@ -119,7 +124,7 @@ function findPartner(currentSocket) {
       findPartner(currentSocket);
     }
   } else {
-    // Se não encontrou, garante que o usuário atual está na lista de espera
+    // Garante que o usuário atual está na lista de espera se não encontrou ninguém
     if (!waitingUsers.includes(currentSocket.id)) {
         waitingUsers.push(currentSocket.id);
     }
