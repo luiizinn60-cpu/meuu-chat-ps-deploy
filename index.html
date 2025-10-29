@@ -5,22 +5,107 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Omegle</title>
     <style>
-        body { margin: 0; padding-bottom: 3rem; font-family: sans-serif; background-color: #f0f0f0; }
-        #video-container { display: flex; justify-content: space-around; padding: 20px; }
+        /* Estilos CSS do Omegle */
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 0; 
+            padding-bottom: 3rem; 
+            background-color: #f6f6f6; /* Fundo muito claro */
+            color: #333;
+        }
+        
+        /* Container Principal do Vídeo */
+        #video-container { 
+            display: flex; 
+            justify-content: center; 
+            gap: 20px; /* Espaçamento entre os vídeos */
+            padding: 20px 0;
+            margin: 20px auto;
+            max-width: 900px;
+        }
+
+        /* Estilo da Caixa de Vídeo */
         .video-box {
             width: 48%;
             max-width: 450px;
-            border: 2px solid #007bff;
-            border-radius: 8px;
-            background-color: #333;
+            border: 1px solid #ddd; 
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            background-color: #fff;
+            position: relative;
+            min-height: 300px; /* Altura mínima para visualização */
             overflow: hidden;
         }
-        .video-box video { width: 100%; display: block; }
-        #form { background: #fff; padding: 0.5rem; position: fixed; bottom: 0; left: 0; right: 0; display: flex; height: 3rem; box-sizing: border-box; border-top: 1px solid #ccc; }
-        #input { border: 1px solid #ccc; padding: 0 1rem; flex-grow: 1; border-radius: 20px; margin-right: 0.5rem; }
+        .video-box video { 
+            width: 100%; 
+            height: auto; 
+            display: block; 
+            object-fit: cover;
+            border-radius: 4px; 
+        }
+
+        /* Estilo da Caixa de Chat (Mensagens) */
+        #messages { 
+            list-style-type: none; 
+            margin: 0 auto; 
+            padding: 10px 20px; 
+            max-width: 900px;
+            min-height: 100px; /* Altura da caixa de chat */
+            max-height: 200px;
+            overflow-y: auto; /* Permite rolar */
+            border: 1px solid #ddd;
+            background-color: #fff;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 70px; /* Espaço para o input fixo */
+        }
+        #messages > li { 
+            padding: 8px 0; 
+            border-bottom: 1px dotted #eee; 
+            font-size: 0.95em;
+        }
+        #messages > li:last-child {
+            border-bottom: none;
+        }
+
+        /* Formulário (Caixa de Texto Fixa) */
+        #form { 
+            background: #fff; 
+            padding: 10px 20px; 
+            position: fixed; 
+            bottom: 0; 
+            left: 0; 
+            right: 0; 
+            display: flex; 
+            height: 50px;
+            box-sizing: border-box; 
+            border-top: 1px solid #ccc;
+            justify-content: center;
+        }
+        #form-inner {
+             display: flex;
+             width: 100%;
+             max-width: 900px;
+        }
+        #input { 
+            border: 1px solid #ccc; 
+            padding: 0 1rem; 
+            flex-grow: 1; 
+            border-radius: 4px; 
+            margin-right: 10px;
+            font-size: 1em;
+        }
         #input:focus { outline: none; border-color: #007bff; }
-        #form > button { background: #007bff; border: none; padding: 0 1rem; border-radius: 20px; outline: none; color: #fff; cursor: pointer; }
-        #messages { list-style-type: none; margin: 0; padding: 1rem 0; }
+        #form button { 
+            background: #007bff; 
+            border: none; 
+            padding: 0 20px; 
+            border-radius: 4px; 
+            outline: none; 
+            color: #fff; 
+            cursor: pointer;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -30,8 +115,11 @@
     </div>
 
     <ul id="messages"></ul>
+    
     <form id="form" action="">
-        <input id="input" autocomplete="off" placeholder="Digite sua mensagem aqui..." /><button>Enviar</button>
+        <div id="form-inner">
+            <input id="input" autocomplete="off" placeholder="Digite sua mensagem aqui..." /><button>Enviar</button>
+        </div>
     </form>
 
     <script src="/socket.io/socket.io.js"></script>
@@ -65,10 +153,10 @@
             var item = document.createElement('li');
             item.textContent = msg;
             messages.appendChild(item);
-            window.scrollTo(0, document.body.scrollHeight);
+            messages.scrollTop = messages.scrollHeight; // Rola para a última mensagem
         });
 
-        // --- 2. INICIAR WEBCAM E WEBRTC ---
+        // --- 2. WEBRTC (Conexão) ---
         async function startWebRTC() {
             try {
                 // 2.1 Capturar a mídia local (webcam e mic)
@@ -83,14 +171,14 @@
                     peerConnection.addTrack(track, localStream);
                 });
 
-                // 2.4 Lidar com o fluxo de vídeo remoto (do outro usuário)
+                // 2.4 Lidar com o fluxo de vídeo remoto
                 peerConnection.ontrack = (event) => {
                     if (event.streams && event.streams[0]) {
                         remoteVideo.srcObject = event.streams[0];
                     }
                 };
 
-                // 2.5 Lidar com os CANDIDATOS ICE (Troca de informações de rede)
+                // 2.5 Lidar com os CANDIDATOS ICE
                 peerConnection.onicecandidate = (event) => {
                     if (event.candidate) {
                         socket.emit('candidate', socket.otherUserId, event.candidate);
@@ -101,7 +189,6 @@
                 createOffer(); 
 
             } catch (error) {
-                // console.error('Erro ao iniciar WebRTC:', error); // Removido
                 alert('É necessário permitir o acesso à webcam e microfone e recarregar a página.');
             }
         }
@@ -116,13 +203,11 @@
 
         // --- 4. RECEBIMENTO DE SINALIZAÇÃO DO SERVIDOR ---
         
-        // Novo usuário conectado (o servidor nos avisou)
         socket.on('user-connected', (userId) => {
             socket.otherUserId = userId; 
-            createOffer(); // Cria a oferta para iniciar a conversa
+            createOffer(); 
         });
 
-        // Recebemos a oferta do outro usuário
         socket.on('offer', async (id, description) => {
             socket.otherUserId = id;
             peerConnection.setRemoteDescription(description);
@@ -131,21 +216,17 @@
             socket.emit('answer', id, peerConnection.localDescription);
         });
 
-        // Recebemos a resposta do outro usuário
         socket.on('answer', (id, description) => {
             peerConnection.setRemoteDescription(description);
         });
 
-        // Recebemos um candidato ICE
         socket.on('candidate', (id, candidate) => {
             peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
         });
 
-        // Usuário se desconectou
         socket.on('user-disconnected', (userId) => {
             if (userId === socket.otherUserId) {
                 alert("O outro usuário se desconectou. Recarregue a página para encontrar um novo.");
-                // window.location.reload(); // Deixamos como alert para não ser tão agressivo
             }
         });
 
